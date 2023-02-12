@@ -1,10 +1,10 @@
-import { AssetsManager, Camera, ComputeBindingType, DynamicTexture, Engine, ISpriteJSONAtlas, Material, Matrix, Mesh, PhysicsImpostor, Quaternion, SpriteMap, StandardMaterial, TextFileAssetTask, Texture, Vector2 } from "babylonjs";
+import { AbstractMesh, ActionEvent, ActionManager, AssetsManager, Camera, ComputeBindingType, DynamicTexture, Engine, EventState, ExecuteCodeAction, ISpriteJSONAtlas, Material, Matrix, Mesh, Observer, PhysicsImpostor, Quaternion, SpriteMap, StandardMaterial, TextFileAssetTask, Texture, Vector2 } from "babylonjs";
 import { Scene, Vector3 } from "babylonjs";
 import Player from "./Player";
 import { BoxCollider, Collider, JumpCollider } from "./Collider";
 import UFICamera from "./UFICamera";
 import { FPS_COUNT_ } from "../globals";
-import { UFICommand } from "../controllers/Controller";
+import { Controller, UFICommand } from "../controllers/Controller";
 import BaseScene from "../scenes/BaseScene";
 import UFITimer from "../time/UFITimer";
 import UFIAnimation from "../time/UFIAnimation";
@@ -36,6 +36,7 @@ export default class EntityObject {
   texture: Texture = undefined;
   material: Material = undefined;
   spriteMap: SpriteMap = undefined;
+  controller: Controller = undefined;
 
   name: string;
   static index = 0;
@@ -61,7 +62,10 @@ export default class EntityObject {
   static GROUND_HEIGHT: number = 0;
   calcGravity_: boolean = true;
   gravity: Vector3 = undefined;
-  supportsPhysics: boolean = false;
+  //collisions
+  collisionTargets: Map<string, Mesh> = new Map();
+  collisionEnterExecuteCodeActionMap: Map<string, ExecuteCodeAction> = new Map();
+  collisionExitExecuteCodeActionMap: Map<string, ExecuteCodeAction> = new Map();
   //animation
   animations: Array<UFIAnimation> = [];
   //debug
@@ -73,18 +77,48 @@ export default class EntityObject {
     options: EntityObjectOptions = new EntityObjectOptions()
   ) {
     this.scene = scene;
-    (<BaseScene>this.scene).entityObjects.push(this);
     this.name = `${prefix}${++EntityObject.index}`;
     this.position = options.position;
     this.up = options.up;
     this.negTarget = options.negTarget;
   }
   createCompundMesh() {
+    (<BaseScene>this.scene).entityObjects.set(this.name, this);
     this.compoundMesh = new Mesh(`compoundMesh${EntityObject.index}`, this.scene);
     this.compoundMesh.position = this.position;
     this.compoundMesh.addChild(this.mesh);
+    this.compoundMesh.checkCollisions = false;
+    this.compoundMesh.isPickable = false;
     this.mesh.position = Vector3.Zero();
     this.update(this.negTarget);
+  }
+  registerCollisions(dst: EntityObject) {
+    const meshSrc = (this.collider === undefined) ? this.mesh : this.collider.mesh;
+    const meshDst = (dst.collider === undefined) ? dst.mesh : dst.collider.mesh;
+
+    meshSrc.actionManager = new ActionManager(this.scene);
+    this.collisionEnterExecuteCodeActionMap.set(meshDst.name, new ExecuteCodeAction(
+      {
+        trigger: ActionManager.OnIntersectionEnterTrigger,
+        parameter: meshDst
+      }, (actionEvent: ActionEvent) => {
+        this.collisionTargets.set(meshDst.name, meshDst);
+        console.log(meshSrc.name, meshDst.name, this.collisionTargets);
+      }
+    )
+    );
+    this.collisionExitExecuteCodeActionMap.set(meshDst.name, new ExecuteCodeAction(
+      {
+        trigger: ActionManager.OnIntersectionExitTrigger,
+        parameter: meshDst
+      }, (actionEvent: ActionEvent) => {
+        console.log(`Exit: ${meshDst.name}`);
+        this.collisionTargets.delete(meshDst.name);
+      }
+    )
+    );
+    meshSrc.actionManager.registerAction(this.collisionEnterExecuteCodeActionMap.get(meshDst.name));
+    meshSrc.actionManager.registerAction(this.collisionExitExecuteCodeActionMap.get(meshDst.name));
   }
   setCamera(camera: UFICamera) {
     this.cam = camera;
@@ -177,6 +211,11 @@ export default class EntityObject {
     friction: number = 0,
     impostorType: number = PhysicsImpostor.BoxImpostor
   ) {
+    if (!this.scene.physicsEnabled) {
+      //enables physics globally
+      (<BaseScene>this.scene).addPhysics();
+    }
+    //sets physicsImpostors
     this.mesh.physicsImpostor = new PhysicsImpostor(
       this.mesh,
       impostorType,
@@ -226,7 +265,7 @@ export default class EntityObject {
     resVec.normalizeToRef(unitResVec);
     return unitResVec;
   }
-  calcAxesRef() {
+  calcAlignVectors() {
     this.v = this.calcUpVector()
     this.w = this.calcBackwardVector();
     this.u = this.calcRightVector();
@@ -266,19 +305,36 @@ export default class EntityObject {
     }
   }
   calcGravity() {
+    if (this.scene.physicsEnabled) {
+      this.compoundMesh.physicsImpostor.sleep();
+    }
+    this.setPosition();
     const scene: BaseScene = <BaseScene>this.scene;
-    this.gravity = (scene.gravityPts === undefined) ? Vector3.Zero() :
-      scene.gravityPts[0].subtract(this.position).normalize().multiplyByFloats(
-        scene.gravityMagnitude,
-        scene.gravityMagnitude,
-        scene.gravityMagnitude
-      );
-    // this.debug.executeOnce(() => console.log(scene.gravityMagnitude));
-    this.debug.executeOnce(() => console.log(this.gravity));
+    this.gravity = Vector3.Zero();
+    if (scene.gravityPts !== undefined) {
+      for (const gravityPt of scene.gravityPts) {
+        const distVector = gravityPt.subtract(this.position);
+        // const dist2 = Vector3.Dot(distVector,distVector);
+        const distUnitVector = distVector.normalize();
+        const gravityMagnitude = scene.gravityMagnitude;
+        this.gravity.addInPlace(
+          distUnitVector.multiplyByFloats(
+            gravityMagnitude,
+            gravityMagnitude,
+            gravityMagnitude
+          )
+        );
+      }
+    }
   }
   applyGravity() {
     if (!this.gravity.equals(Vector3.Zero())) {
+      if (this.scene.physicsEnabled) {
+        this.compoundMesh.physicsImpostor.wakeUp();
+      }
+
       this.compoundMesh.physicsImpostor.applyImpulse(this.gravity, this.position);
+
     }
   }
   setNegTarget(negTarget: Vector3) {
@@ -287,18 +343,16 @@ export default class EntityObject {
   }
 
   update(negTarget: Vector3) {
-    this.setPosition();
-    this.calcGravity();
     this.setNegTarget(negTarget);
-    this.calcAxesRef();
+    this.calcAlignVectors();
     this.align();
     this.updatedOnce = true;
   }
-  updateWithGravity(negTarget: Vector3) {
-    this.compoundMesh.physicsImpostor.sleep();
-    this.update(negTarget);
-    this.compoundMesh.physicsImpostor.wakeUp();
-    this.applyGravity();
+  updateWithGravity() {
+    this.calcGravity();
+    if (this.controller !== undefined) {
+      this.update(this.cam.camObj.position);
+    }
   }
   align() {
     if (this.cam !== undefined) {

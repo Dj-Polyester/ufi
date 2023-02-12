@@ -29,9 +29,9 @@ export default class Player extends UFIPlane {
     this.mesh.isPickable = false;
   }
   addController(controller: Controller) {
+    this.controller = controller;
     controller.entityObject = this;
     this.scene.onBeforeRenderObservable.add(() => {
-      this.updateWithGravity(this.cam.camObj.position);
       controller.listen();
       // this.move(controller.command);
     });

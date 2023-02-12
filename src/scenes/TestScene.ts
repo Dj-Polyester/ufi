@@ -1,4 +1,4 @@
-import { Color3, Engine, HemisphericLight, Mesh, MeshBuilder, Node, PhysicsImpostor, Vector3 } from "babylonjs";
+import { ActionEvent, ActionManager, Color3, Engine, ExecuteCodeAction, HemisphericLight, Mesh, MeshBuilder, Node, PhysicsImpostor, Vector3 } from "babylonjs";
 import { UFIPlane } from "../objects/UFIPlane";
 
 import BaseScene from "./BaseScene";
@@ -23,8 +23,7 @@ export default class TestScene2 extends BaseScene {
   player: Player;
   controller: Controller;
   constructor() {
-    super();
-    this.addPhysics(GRAVITY);
+    super(GRAVITY);
 
     //CREATE OBJECTS
     let ball = new UFISphere(this, 100, 0);
@@ -72,12 +71,16 @@ export default class TestScene2 extends BaseScene {
         Color3.Blue()
       )
     );
-    //GRAVITATIONAL PTS
 
     //ENABLE PHYSICS
+    //physicsImpostors
     this.player.addPhysics(1);
     dummy.addPhysics(1);
     ball.addPhysics(0, 0, 0, PhysicsImpostor.SphereImpostor);
+    //gravity
+    this.applyGravity2Objects();
+    //collisions
+    this.registerCollisionForAll();
     //CONTROLLER
     this.controller = new TestController(this);
 
@@ -115,5 +118,39 @@ export default class TestScene2 extends BaseScene {
 
     this.player.addController(this.controller);
     // console.log(walkingAnim.obj);
+  }
+  applyGravity2Objects() {
+    this.onBeforeRenderObservable.add(() => {
+      this.entityObjects.forEach((entityObject: EntityObject, _) => {
+        entityObject.updateWithGravity();
+
+        let collidingWithAGObject = false;
+        entityObject.collisionTargets.forEach((mesh: Mesh, name: string) => {
+          for (const gravityPt of this.gravityPts) {
+            if (gravityPt.equals(mesh.position)) {
+              collidingWithAGObject = true;
+              return;
+            }
+          }
+        })
+        if (!collidingWithAGObject) {
+          entityObject.applyGravity();
+        }
+      });
+    })
+  }
+  registerCollisionForAll() {
+    const entityObjectsNames = Array.from(this.entityObjects.keys())
+    console.log(entityObjectsNames);
+    for (const index1 in entityObjectsNames) {
+      const name1: string = entityObjectsNames[index1];
+      for (const name2 of entityObjectsNames.slice(index1 + 1)) {
+        const entityObject1 = this.entityObjects.get(name1);
+        const entityObject2 = this.entityObjects.get(name2);
+
+        entityObject1.registerCollisions(entityObject2);
+        entityObject2.registerCollisions(entityObject1);
+      }
+    }
   }
 }

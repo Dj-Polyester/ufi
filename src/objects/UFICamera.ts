@@ -8,7 +8,7 @@ export default class UFICamera extends EntityObject {
     scene: Scene,
     canvas: any,
     position: Vector3 = undefined,
-    radius = 10,
+    radius = 100,
     lowerAlphaLimitDegrees = undefined,
     upperAlphaLimitDegrees = undefined,
     lowerBetaLimitDegrees = 45,
