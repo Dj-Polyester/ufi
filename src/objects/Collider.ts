@@ -7,10 +7,11 @@ import {
   StandardMaterial,
   Ray,
   RayHelper,
-  Quaternion
+  Quaternion,
 } from "babylonjs";
-import EntityObject from "./EntityObject";
+import EntityObject, { EntityObjectOptions } from "./EntityObject";
 import Player from "./Player";
+import Debug from "./Debug";
 
 export class Collider extends EntityObject {
   obj: EntityObject;
@@ -19,12 +20,10 @@ export class Collider extends EntityObject {
   highlightColor: Color3;
   constructor(
     scene: Scene,
-    position: Vector3 = Vector3.Zero(),
-    up: Vector3 = null,
-    target: Vector3 = null,
-    highlightColor: Color3 = null
+    highlightColor: Color3 = null,
+    entityObjectOptions = new EntityObjectOptions()
   ) {
-    super(scene, "collider", position, up, target);
+    super(scene, "collider", entityObjectOptions);
     this.highlightColor = highlightColor;
   }
   createMaterialIfNull() {
@@ -55,44 +54,32 @@ export class JumpCollider extends Collider {
   ray: Ray;
   rayHelper: RayHelper;
   height: number;
-
   onObject: boolean = false;
   static LAMBDA = 0.01;
-  // Rising threshold in seconds
-  risingDuration: number;
-  time: number;
+  //
+  debug = new Debug();
+
   constructor(
     scene: Scene,
     height: number,
     highlightColor: Color3 = null,
-    position: Vector3 = Vector3.Zero(),
-    up: Vector3 = null,
-    target: Vector3 = null,
-    risingDuration: number = 5
+    entityObjectOptions = new EntityObjectOptions()
   ) {
-    super(scene, position, up, target, highlightColor);
+    super(scene, highlightColor, entityObjectOptions);
     this.height = height;
-    this.risingDuration = risingDuration * 1000;
-    this.time = 0;
-  }
-
-  callbackOnRisingDurationComplete(deltaTime: number, callback: () => void,) {
-    this.time += deltaTime;
-    if (this.time >= this.risingDuration) {
-      callback();
-      this.time = 0;
-    }
   }
 
   addRayDown() {
     this.ray = new Ray();
     this.rayHelper = new RayHelper(this.ray);
+
     this.rayHelper.attachToMesh(
       this.obj.mesh,
-      this.obj.gravity,
+      Vector3.Down(),
       Vector3.Zero(),
       (this.height / 2) + JumpCollider.LAMBDA
     );
+
     if (this.highlightColor !== null) {
       this.rayHelper.show(this.scene, this.highlightColor);
     }
@@ -108,12 +95,6 @@ export class JumpCollider extends Collider {
   createMesh() {
     this.addRayDown();
   }
-  align() {
-    // this.mesh.rotationQuaternion = (
-    //   this.negTarget === null ||
-    //   this.v === null
-    // ) ? Quaternion.Identity() : this.alignMatrix();
-  }
 }
 
 export class BoxCollider extends JumpCollider {
@@ -126,11 +107,9 @@ export class BoxCollider extends JumpCollider {
     height: number,
     depth: number,
     highlightColor: Color3 = null,
-    position: Vector3 = Vector3.Zero(),
-    up: Vector3 = null,
-    target: Vector3 = null,
+    entityObjectOptions = new EntityObjectOptions()
   ) {
-    super(scene, height, highlightColor, position, up, target);
+    super(scene, height, highlightColor, entityObjectOptions);
 
     this.width = width;
     this.depth = depth;

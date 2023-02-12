@@ -8,6 +8,24 @@ import { UFICommand } from "../controllers/Controller";
 import BaseScene from "../scenes/BaseScene";
 import UFITimer from "../time/UFITimer";
 import UFIAnimation from "../time/UFIAnimation";
+import Debug from "./Debug";
+
+
+export class EntityObjectOptions {
+  position: Vector3;
+  up: Vector3;
+  negTarget: Vector3;
+  constructor(
+    position: Vector3 = Vector3.Zero(),
+    up: Vector3 = Vector3.Up(),
+    negTarget: Vector3 = Vector3.Backward()
+  ) {
+    this.position = position;
+    this.up = up;
+    this.negTarget = negTarget;
+  }
+}
+
 // All EntityObject instances can move
 export default class EntityObject {
   mesh: Mesh = undefined;
@@ -41,31 +59,32 @@ export default class EntityObject {
   //physics
   //https://grideasy.github.io/tutorials/Using_The_Physics_Engine#impostors
   static GROUND_HEIGHT: number = 0;
-  calcGravity: boolean = true;
+  calcGravity_: boolean = true;
   gravity: Vector3 = undefined;
   supportsPhysics: boolean = false;
   //animation
   animations: Array<UFIAnimation> = [];
+  //debug
+  debug: Debug = new Debug();
+  updatedOnce: boolean = false;
   constructor(
     scene: Scene,
     prefix: string,
-    position: Vector3 = Vector3.Zero(),
-    up: Vector3 = Vector3.Up(),
-    negTarget: Vector3 = Vector3.Forward()
+    options: EntityObjectOptions = new EntityObjectOptions()
   ) {
     this.scene = scene;
     (<BaseScene>this.scene).entityObjects.push(this);
     this.name = `${prefix}${++EntityObject.index}`;
-    this.position = position;
-    this.up = up;
-    this.negTarget = negTarget;
+    this.position = options.position;
+    this.up = options.up;
+    this.negTarget = options.negTarget;
   }
   createCompundMesh() {
     this.compoundMesh = new Mesh(`compoundMesh${EntityObject.index}`, this.scene);
     this.compoundMesh.position = this.position;
     this.compoundMesh.addChild(this.mesh);
     this.mesh.position = Vector3.Zero();
-    // this.mesh.rotationQuaternion = Quaternion.Identity();
+    this.update(this.negTarget);
   }
   setCamera(camera: UFICamera) {
     this.cam = camera;
@@ -73,9 +92,7 @@ export default class EntityObject {
     this.camMesh = new Mesh(`camMesh${EntityObject.index}`, this.scene);
     this.compoundMesh.addChild(this.camMesh);
     this.camMesh.position = Vector3.Zero();
-    // this.camMesh.rotationQuaternion = Quaternion.Identity();
     this.cam.camObj.lockedTarget = this.camMesh;
-    //this.cam.camObj.updateUpVectorFromRotation = true;
   }
   setDynamicTexture(
     width: number = 64,
@@ -117,7 +134,7 @@ export default class EntityObject {
       dynamicTexture.update();
     }
   }
-  setCollider(collider: Collider, isFacingCamera: boolean = true) {
+  setCollider(collider: Collider, isFacingCamera: boolean = false) {
     this.collider = collider;
     this.collider.obj = this;
     this.collider.createMesh();
@@ -181,10 +198,10 @@ export default class EntityObject {
     this.compoundMesh.physicsImpostor.physicsBody.angularDamping = 1;
   }
   calcUpVector() {
-    return (!this.scene.physicsEnabled || (<BaseScene>this.scene).gravityMagnitude === 0) ? this.up.normalize() : this.gravity.negate().normalize();
+    return (!this.scene.physicsEnabled || this.gravity.equals(Vector3.Zero())) ? this.up.normalize() : this.gravity.negate().normalize();
   }
   calcBackwardVector(projectOrthogonal: boolean = true) {
-    const resVec: Vector3 = this.negTarget.subtract(this.compoundMesh.position).normalize();
+    const resVec: Vector3 = this.negTarget.subtract(this.position).normalize();
     if (projectOrthogonal) {
       const costheta: number = Vector3.Dot(resVec, this.v);
       resVec.subtractInPlace(
@@ -244,55 +261,63 @@ export default class EntityObject {
     )
   }
   setPosition() {
-    this.position = this.compoundMesh.position;
+    if (this.updatedOnce) {
+      this.position = this.compoundMesh.position;
+    }
   }
-  setNegTarget() {
+  calcGravity() {
+    const scene: BaseScene = <BaseScene>this.scene;
+    this.gravity = (scene.gravityPts === undefined) ? Vector3.Zero() :
+      scene.gravityPts[0].subtract(this.position).normalize().multiplyByFloats(
+        scene.gravityMagnitude,
+        scene.gravityMagnitude,
+        scene.gravityMagnitude
+      );
+    // this.debug.executeOnce(() => console.log(scene.gravityMagnitude));
+    this.debug.executeOnce(() => console.log(this.gravity));
+  }
+  applyGravity() {
+    if (!this.gravity.equals(Vector3.Zero())) {
+      this.compoundMesh.physicsImpostor.applyImpulse(this.gravity, this.position);
+    }
+  }
+  setNegTarget(negTarget: Vector3) {
     this.negTarget = Vector3.Zero();
-    this.negTarget.copyFrom(this.cam.camObj.position);
+    this.negTarget.copyFrom(negTarget);
   }
-  printTimes: number = 1000;
-  once: boolean = true;
-  update() {
+
+  update(negTarget: Vector3) {
     this.setPosition();
-    this.setNegTarget();
+    this.calcGravity();
+    this.setNegTarget(negTarget);
     this.calcAxesRef();
     this.align();
+    this.updatedOnce = true;
+  }
+  updateWithGravity(negTarget: Vector3) {
+    this.compoundMesh.physicsImpostor.sleep();
+    this.update(negTarget);
+    this.compoundMesh.physicsImpostor.wakeUp();
+    this.applyGravity();
   }
   align() {
-    this.cam.camObj.upVector = this.v;
-    // this.compoundMesh.rotationQuaternion = this.alignMatrix();
+    if (this.cam !== undefined) {
+      this.cam.camObj.upVector = this.v;
+    }
+    this.compoundMesh.rotationQuaternion = this.alignMatrix();
   }
   alignMatrix() {
-    const target = this.position.multiplyByFloats(2, 2, 2).subtract(this.negTarget);
-
-    return Quaternion.FromRotationMatrix(
-      Matrix.LookAtRH(this.position, this.negTarget, this.v)
-    );
-  }
-  alignAndMove(command: UFICommand) {
-    this.update();
-    this.move(command);
+    return Quaternion.FromLookDirectionRH(this.w.negate(), this.v)
   }
   move(command: UFICommand) {
     const velocityOnUWPlane = this.calcVelocityOnUWPlane(command.displacement);
     const velocityOnV = this.calcVelocityOnV(command.displacement);
-
-    if (this.printTimes > 0) {
-      console.log(`velocityOnUWPlane:${velocityOnUWPlane}`);
-      console.log(`velocityOnV:${velocityOnV}`);
-      this.printTimes--;
-    }
 
     if (!this.scene.physicsEnabled) {
       throw Error("Physics are not enabled.")
     }
 
     const jumpCollider: JumpCollider = <JumpCollider>this.collider;
-    if (jumpCollider === undefined) {
-      throw Error("jumpCollider is undefined");
-    }
-    //console.log(jumpCollider.onObject);
-
     if (jumpCollider.onObject || (command.test && (<BaseScene>this.scene).gravityMagnitude === 0)) {
       this.jumpsLeft = this.jumpCount;
     }

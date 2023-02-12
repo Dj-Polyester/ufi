@@ -81,7 +81,7 @@ export default class TestController extends Controller {
       this.command.displacement.addInPlace(Vector3.Down());
     }
     if (inputMap["g"]) {
-      this.entityObject.calcGravity = !this.entityObject.calcGravity;
+      this.entityObject.calcGravity_ = !this.entityObject.calcGravity_;
     }
   };
 }

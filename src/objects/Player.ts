@@ -8,21 +8,19 @@ import {
 } from "babylonjs";
 import { Controller, UFICommand } from "../controllers/Controller";
 import PlayerController from "../controllers/PlayerController";
-import UFIPlane from "./UFIPlane";
+import { UFIPlane, UFIPlaneOptions } from "./UFIPlane";
+import { EntityObjectOptions } from "./EntityObject";
 
 export default class Player extends UFIPlane {
   constructor(
     scene: Scene,
-    width: number = 1,
-    height: number = 1,
-    position: Vector3 = Vector3.Zero(),
-    up: Vector3 = Vector3.Up(),
-    target: Vector3 = Vector3.Forward(),
+    options: UFIPlaneOptions = { width: 1, height: 1 },
+    entityObjectOptions = new EntityObjectOptions(),
     speed: number = 10,
     jumpSpeed: number = speed,
     jumpCount: number = 2
   ) {
-    super(scene, width, height, position, up, target, true);
+    super(scene, options, entityObjectOptions);
     // console.log(`url: ${url}`);
     //units per second
     this.speed = speed;
@@ -32,7 +30,11 @@ export default class Player extends UFIPlane {
   }
   addController(controller: Controller) {
     controller.entityObject = this;
-    controller.addEventListeners();
+    this.scene.onBeforeRenderObservable.add(() => {
+      this.updateWithGravity(this.cam.camObj.position);
+      controller.listen();
+      // this.move(controller.command);
+    });
     const playerController = <PlayerController>controller;
     if (
       playerController.managePointerLock !== undefined &&

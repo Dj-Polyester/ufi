@@ -1,5 +1,5 @@
 import { Scene, MeshBuilder, Vector3 } from "babylonjs";
-import EntityObject from "./EntityObject";
+import EntityObject, { EntityObjectOptions } from "./EntityObject";
 export default class UFISphere extends EntityObject {
     scene: Scene;
     diameter: number;
@@ -9,11 +9,9 @@ export default class UFISphere extends EntityObject {
         scene: Scene,
         diameter: number = undefined,
         segments: number = undefined,
-        position: Vector3 = Vector3.Zero(),
-        up: Vector3 = Vector3.Up(),
-        target: Vector3 = Vector3.Forward(),
+        entityObjectOptions = new EntityObjectOptions()
     ) {
-        super(scene, "sphere", position, up, target);
+        super(scene, "sphere", entityObjectOptions);
         this.diameter = diameter;
         this.segments = segments;
         this.createMesh();

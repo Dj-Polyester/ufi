@@ -1,28 +1,26 @@
 import { MeshBuilder, Vector3, Scene, Mesh } from "babylonjs";
 
-import EntityObject from "./EntityObject";
+import EntityObject, { EntityObjectOptions } from "./EntityObject";
 
-export default class UFIPlane extends EntityObject {
+export interface UFIPlaneOptions {
+  width: number;
+  height: number;
+}
+
+export class UFIPlane extends EntityObject {
   scene: Scene;
   width: number;
   height: number;
 
   constructor(
     scene: Scene,
-    width: number,
-    height: number,
-    position: Vector3 = Vector3.Zero(),
-    up: Vector3 = Vector3.Up(),
-    target: Vector3 = Vector3.Forward(),
-    isFacing: boolean = false
+    options: UFIPlaneOptions,
+    entityObjectOptions = new EntityObjectOptions(),
   ) {
-    super(scene, "plane", position, up, target);
-    this.width = width;
-    this.height = height;
+    super(scene, "plane", entityObjectOptions);
+    this.width = options.width;
+    this.height = options.height;
     this.createMesh();
-    if (isFacing) {
-      this.mesh.billboardMode = Mesh.BILLBOARDMODE_ALL;
-    }
   }
   createMesh() {
     this.mesh = MeshBuilder.CreatePlane(this.name, {

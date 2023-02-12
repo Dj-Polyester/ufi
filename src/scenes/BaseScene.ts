@@ -9,6 +9,8 @@ export default class BaseScene extends Scene {
   physEngine: IPhysicsEnginePlugin = undefined;
   gravityMagnitude: number = undefined;
   entityObjects: EntityObject[] = [];
+  gravityPts: Vector3[];
+
   constructor() {
     super(engine);
     this.physicsEnabled = false;
@@ -20,25 +22,5 @@ export default class BaseScene extends Scene {
     this.physEngine.setTimeStep(TIME_STEP_);
     this.gravityMagnitude = gravity;
     this.enablePhysics(Vector3.Zero(), this.physEngine);
-
-    this.onBeforeRenderObservable.add(() => {
-      for (const entityObject of this.entityObjects) {
-        if (entityObject.calcGravity) {
-          entityObject.gravity = this.calcGravity(entityObject);
-          if (entityObject.gravity !== undefined) {
-            if (entityObject.once) {
-              console.log(entityObject.gravity);
-              entityObject.once = false;
-            }
-            entityObject.compoundMesh.physicsImpostor.applyImpulse(
-              entityObject.gravity, entityObject.compoundMesh.position
-            );
-          }
-        }
-      }
-    })
-  }
-  calcGravity(_: EntityObject) {
-    return Vector3.Down();
   }
 }

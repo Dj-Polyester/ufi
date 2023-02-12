@@ -1,7 +1,6 @@
-import { Color3, Engine, HemisphericLight, MeshBuilder, PhysicsImpostor, Vector3 } from "babylonjs";
-import UFIPlane from "../objects/UFIPlane";
+import { Color3, Engine, HemisphericLight, Mesh, MeshBuilder, Node, PhysicsImpostor, Vector3 } from "babylonjs";
+import { UFIPlane } from "../objects/UFIPlane";
 
-import UFIGround from "../objects/UFIGround";
 import BaseScene from "./BaseScene";
 
 import { BoxCollider, JumpCollider } from "../objects/Collider";
@@ -11,30 +10,43 @@ import { Controller } from "../controllers/Controller";
 import PlayerController from "../controllers/PlayerController";
 import {
   GRAVITY,
-  SPRITESHEET_DIR,
-  SPRITESHEET_MAP_DIR,
   PLAYER_IDLE,
-  PLAYER_WALKING_F1,
-  PLAYER_WALKING_F2,
-  PLAYER_WALKING_B1,
-  PLAYER_WALKING_B2,
-  PLAYER_WALKING_R1,
-  PLAYER_WALKING_R2,
-  PLAYER_WALKING_L1,
-  PLAYER_WALKING_L2,
-  canvas
+  canvas,
 } from "../globals";
 import UFIAnimation from "../time/UFIAnimation";
 import AnimatedController from "../controllers/AnimatedController";
 import TestController from "../controllers/TestController";
+import UFISphere from "../objects/UFISphere";
+import EntityObject, { EntityObjectOptions } from "../objects/EntityObject";
 
-export default class TestScene extends BaseScene {
+export default class TestScene2 extends BaseScene {
   player: Player;
   controller: Controller;
   constructor() {
     super();
+    this.addPhysics(GRAVITY);
+
     //CREATE OBJECTS
-    this.player = new Player(this, 1, 1, new Vector3(1, 2, 3));
+    let ball = new UFISphere(this, 100, 0);
+    this.gravityPts = [
+      ball.position
+    ];
+
+    this.player = new Player(this, { width: 1, height: 1 },
+      new EntityObjectOptions(
+        new Vector3(60, 0, 0),
+        Vector3.Left()
+      )
+    );
+
+    let dummy = new UFIPlane(this, { width: 6, height: 8 },
+      {
+        position: new Vector3(60, 10, 0),
+        up: Vector3.Left(),
+        negTarget: this.player.position
+      }
+    );
+
     console.log(`this.player.compoundMesh.position:${this.player.compoundMesh.position}`);
 
     // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
@@ -43,96 +55,63 @@ export default class TestScene extends BaseScene {
     let camera = new UFICamera(this, canvas, this.player.compoundMesh.position);
 
     this.player.setCamera(camera);
-
-    // console.log(SPRITESHEET_DIR);
-    // console.log(SPRITESHEET_MAP_DIR);
-
-
-    // this.player.setTexture(SPRITESHEET_DIR);
-    // this.player.mapSprites(SPRITESHEET_MAP_DIR);
-    // this.player.drawSprite();
-
     this.player.setDynamicTexture();
-    // this.player.drawDynamicTexture(PLAYER_IDLE);
 
 
-
-    // Our built-in 'ground' shape, call once, singleton doesnt work due to hot-reload
-    let ground = new UFIGround(this, 60, 60);
-    let dummy = new UFIPlane(this, 6, 8, new Vector3(5, 4, 20));
-    let facingDummy = new UFIPlane(this, 6, 8, new Vector3(5, 4, -20), Vector3.Zero(), true);
-
-    let ball = MeshBuilder.CreateSphere('', { diameter: 1, segments: 4 }, this);
-    let ball2 = MeshBuilder.CreateSphere('', { diameter: 1, segments: 4 }, this);
-    let ball3 = MeshBuilder.CreateSphere('', { diameter: 1, segments: 4 }, this);
-
-    let ball4 = MeshBuilder.CreateSphere('', { diameter: 1, segments: 4 }, this);
-    let ball5 = MeshBuilder.CreateSphere('', { diameter: 1, segments: 4 }, this);
-
-    // ball2.position = new Vector3(1, 2, 3);
-    ball3.position = new Vector3(2, 4, 6);
-    ball4.position = new Vector3(5, 4, 20);
-    ball5.position = new Vector3(5, 4, -20);
-
-
-    // this.player.setCollider(
-    //   new JumpCollider(
-    //     this,
-    //     this.player.height,
-    //     null,
-    //     null,
-    //     Color3.Red()
-    //   ),
-    //   true
-    // );
     this.player.setCollider(
+      // new JumpCollider(
+      //   this,
+      //   this.player.height,
+      //   Color3.Blue()
+      // )
       new BoxCollider(
         this,
         this.player.width,
         this.player.height,
         .5,
-        null,
-        null,
         Color3.Blue()
       )
     );
+    //GRAVITATIONAL PTS
+
     //ENABLE PHYSICS
-    this.addPhysics(GRAVITY);
     this.player.addPhysics(1);
-    ground.addPhysics();
-    dummy.addPhysics();
+    dummy.addPhysics(1);
+    ball.addPhysics(0, 0, 0, PhysicsImpostor.SphereImpostor);
     //CONTROLLER
-    // this.controller = new TestController(this, canvas);
+    this.controller = new TestController(this);
+
+    this.player.drawDynamicTexture(PLAYER_IDLE);
     // this.controller = new PlayerController(this, canvas);
-    this.controller = new AnimatedController(
-      this,
-      canvas,
-      [PLAYER_IDLE],
-      [
-        PLAYER_WALKING_F1,
-        PLAYER_WALKING_F2
-      ],
-      [
-        PLAYER_WALKING_B1,
-        PLAYER_WALKING_B2
-      ],
-      [
-        PLAYER_WALKING_L1,
-        PLAYER_WALKING_L2
-      ],
-      [
-        PLAYER_WALKING_R1,
-        PLAYER_WALKING_R2
-      ]
-    );
-    const controller = (<AnimatedController>this.controller);
-    this.player.addAnimation([
-      controller.idleAnim,
-      controller.walkingFAnim,
-      controller.walkingBAnim,
-      controller.walkingLAnim,
-      controller.walkingRAnim
-    ]);
+    // this.controller = new AnimatedController(
+    //   this,
+    //   canvas,
+    //   [PLAYER_IDLE],
+    //   [
+    //     PLAYER_WALKING_F1,
+    //     PLAYER_WALKING_F2
+    //   ],
+    //   [
+    //     PLAYER_WALKING_B1,
+    //     PLAYER_WALKING_B2
+    //   ],
+    //   [
+    //     PLAYER_WALKING_L1,
+    //     PLAYER_WALKING_L2
+    //   ],
+    //   [
+    //     PLAYER_WALKING_R1,
+    //     PLAYER_WALKING_R2
+    //   ]
+    // );
+    // const controller = (<AnimatedController>this.controller);
+    // this.player.addAnimation([
+    //   controller.idleAnim,
+    //   controller.walkingFAnim,
+    //   controller.walkingBAnim,
+    //   controller.walkingLAnim,
+    //   controller.walkingRAnim
+    // ]);
 
     this.player.addController(this.controller);
     // console.log(walkingAnim.obj);

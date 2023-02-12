@@ -74,13 +74,6 @@ export abstract class Controller {
     this.listenInput(inputMap);
     this.inputMapQueue.unshift(inputMap);
   }
-  addEventListeners() {
-    this.scene.onBeforeRenderObservable.add(() => {
-      this.listen();
-      this.entityObject.alignAndMove(this.command);
-    });
-    // this.addCameraControls();
-  }
   // children should implement these
   setNegTarget() { }
   calcUpVector() { }
