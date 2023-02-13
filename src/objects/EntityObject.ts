@@ -352,6 +352,8 @@ export default class EntityObject {
     this.calcGravity();
     if (this.controller !== undefined) {
       this.update(this.cam.camObj.position);
+      this.controller.listen();
+      this.move(this.controller.command);
     }
   }
   align() {

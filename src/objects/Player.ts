@@ -31,10 +31,6 @@ export default class Player extends UFIPlane {
   addController(controller: Controller) {
     this.controller = controller;
     controller.entityObject = this;
-    this.scene.onBeforeRenderObservable.add(() => {
-      controller.listen();
-      // this.move(controller.command);
-    });
     const playerController = <PlayerController>controller;
     if (
       playerController.managePointerLock !== undefined &&
