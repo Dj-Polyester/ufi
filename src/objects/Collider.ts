@@ -55,7 +55,7 @@ export class JumpCollider extends Collider {
   rayHelper: RayHelper;
   height: number;
   onObject: boolean = false;
-  static LAMBDA = 0.01;
+  static LAMBDA = 0.1;
   //
   debug = new Debug();
 
@@ -88,7 +88,7 @@ export class JumpCollider extends Collider {
       const pick = this.scene.pickWithRay(this.ray);
       if (pick) {
         this.onObject = pick.hit;
-        // console.log(`this.onObject: ${this.onObject}`);
+        console.log(`this.onObject: ${this.onObject}`);
       }
     });
   }

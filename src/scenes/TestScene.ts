@@ -122,23 +122,25 @@ export default class TestScene2 extends BaseScene {
   applyGravity2Objects() {
     this.onBeforeRenderObservable.add(() => {
       this.entityObjects.forEach((entityObject: EntityObject, _) => {
-
-        let collidingWithAGObject = false;
-        entityObject.collisionTargets.forEach((mesh: Mesh, name: string) => {
-          for (const gravityPt of this.gravityPts) {
-            if (gravityPt.equals(mesh.position)) {
-              collidingWithAGObject = true;
-              return;
-            }
-          }
-        })
         entityObject.updateWithGravity();
-        if (collidingWithAGObject) {
-        } else {
-          entityObject.applyGravity();
-        }
+        //let collidingWithAGObject = this.checkCollisionWithGround(entityObject);
+        //if (collidingWithAGObject) {
+        //} else {
+        //  entityObject.applyGravity();
+        //}
+        entityObject.applyGravity();
       });
     })
+  }
+  checkCollisionWithGround(entityObject: EntityObject): boolean {
+    entityObject.collisionTargets.forEach((mesh: Mesh, name: string) => {
+      for (const gravityPt of this.gravityPts) {
+        if (gravityPt.equals(mesh.position)) {
+          return true;
+        }
+      }
+    });
+    return false;
   }
   registerCollisionForAll() {
     const entityObjectsNames = Array.from(this.entityObjects.keys())

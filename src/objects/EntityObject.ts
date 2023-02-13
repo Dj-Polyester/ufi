@@ -390,15 +390,10 @@ export default class EntityObject {
         currVelocityMagnitudeOnV
       );
       console.log(currVelocityOnV, velocityOnUWPlane);
-      this.compoundMesh.physicsImpostor.setLinearVelocity(velocityOnUWPlane);
+      this.compoundMesh.physicsImpostor.setLinearVelocity(velocityOnUWPlane.add(currVelocityOnV));
     }
     else {
-      if (jumpCollider.onObject || (command.test && (<BaseScene>this.scene).gravityMagnitude === 0)) {
-        this.compoundMesh.physicsImpostor.sleep();
-      }
-      else if (command.test && (<BaseScene>this.scene).gravityMagnitude !== 0) {
-        this.compoundMesh.physicsImpostor.wakeUp();
-      }
+      this.compoundMesh.physicsImpostor.wakeUp();
       const currVelocity = this.compoundMesh.physicsImpostor.getLinearVelocity();
       const currVelocityMagnitudeOnV = Vector3.Dot(this.v, currVelocity);
       const currVelocityOnV = this.v.multiplyByFloats(
