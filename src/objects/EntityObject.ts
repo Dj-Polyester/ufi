@@ -254,7 +254,7 @@ export default class EntityObject {
     return resVec.normalize();
   }
   calcRightVector(): Vector3 {
-    return Vector3.Cross(this.w, this.v);
+    return Vector3.Cross(this.v, this.w);
   }
   calcAnOrthogonal(forwardVector: Vector3) {
     const resVec: Vector3 = Vector3.Zero(),
