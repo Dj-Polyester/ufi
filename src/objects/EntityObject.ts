@@ -1,4 +1,4 @@
-import { AbstractMesh, ActionEvent, ActionManager, AssetsManager, Camera, ComputeBindingType, DynamicTexture, Engine, EventState, ExecuteCodeAction, ISpriteJSONAtlas, Material, Matrix, Mesh, Observer, PhysicsImpostor, Quaternion, SpriteMap, StandardMaterial, TextFileAssetTask, Texture, Vector2 } from "babylonjs";
+import { AbstractMesh, ActionEvent, ActionManager, AssetsManager, Camera, ComputeBindingType, DynamicTexture, Engine, EventState, ExecuteCodeAction, ISpriteJSONAtlas, Logger, Material, Matrix, Mesh, Observer, PhysicsImpostor, Quaternion, SpriteMap, StandardMaterial, TextFileAssetTask, Texture, Vector2 } from "babylonjs";
 import { Scene, Vector3 } from "babylonjs";
 import Player from "./Player";
 import { BoxCollider, Collider, JumpCollider } from "./Collider";
@@ -103,7 +103,7 @@ export default class EntityObject {
         parameter: meshDst
       }, (actionEvent: ActionEvent) => {
         this.collisionTargets.set(meshDst.name, meshDst);
-        console.log(meshSrc.name, meshDst.name, this.collisionTargets);
+        console.log(this.collisionTargets);
       }
     )
     );
@@ -112,8 +112,8 @@ export default class EntityObject {
         trigger: ActionManager.OnIntersectionExitTrigger,
         parameter: meshDst
       }, (actionEvent: ActionEvent) => {
-        console.log(`Exit: ${meshDst.name}`);
         this.collisionTargets.delete(meshDst.name);
+        console.log(this.collisionTargets);
       }
     )
     );
@@ -305,9 +305,7 @@ export default class EntityObject {
     }
   }
   calcGravity() {
-    if (this.scene.physicsEnabled) {
-      this.compoundMesh.physicsImpostor.sleep();
-    }
+
     this.setPosition();
     const scene: BaseScene = <BaseScene>this.scene;
     this.gravity = Vector3.Zero();
@@ -328,13 +326,9 @@ export default class EntityObject {
     }
   }
   applyGravity() {
-    if (!this.gravity.equals(Vector3.Zero())) {
-      if (this.scene.physicsEnabled) {
-        this.compoundMesh.physicsImpostor.wakeUp();
-      }
-
-      this.compoundMesh.physicsImpostor.applyImpulse(this.gravity, this.position);
-
+    if (!this.gravity.equals(Vector3.Zero()) && this.scene.physicsEnabled) {
+      this.compoundMesh.physicsImpostor.wakeUp();
+      this.compoundMesh.physicsImpostor.applyForce(this.gravity, this.position);
     }
   }
   setNegTarget(negTarget: Vector3) {
@@ -359,6 +353,9 @@ export default class EntityObject {
   align() {
     if (this.cam !== undefined) {
       this.cam.camObj.upVector = this.v;
+    }
+    if (this.scene.physicsEnabled) {
+      //this.compoundMesh.physicsImpostor.sleep();
     }
     this.compoundMesh.rotationQuaternion = this.alignMatrix();
   }
@@ -386,9 +383,14 @@ export default class EntityObject {
     else if (command.displacement.x !== 0 || command.displacement.z !== 0) {
       this.compoundMesh.physicsImpostor.wakeUp();
       const currVelocity = this.compoundMesh.physicsImpostor.getLinearVelocity();
-      currVelocity.x = 0;
-      currVelocity.z = 0;
-      this.compoundMesh.physicsImpostor.setLinearVelocity(velocityOnUWPlane.add(currVelocity));
+      const currVelocityMagnitudeOnV = Vector3.Dot(this.v, currVelocity);
+      const currVelocityOnV = this.v.multiplyByFloats(
+        currVelocityMagnitudeOnV,
+        currVelocityMagnitudeOnV,
+        currVelocityMagnitudeOnV
+      );
+      console.log(currVelocityOnV, velocityOnUWPlane);
+      this.compoundMesh.physicsImpostor.setLinearVelocity(velocityOnUWPlane);
     }
     else {
       if (jumpCollider.onObject || (command.test && (<BaseScene>this.scene).gravityMagnitude === 0)) {
@@ -398,9 +400,13 @@ export default class EntityObject {
         this.compoundMesh.physicsImpostor.wakeUp();
       }
       const currVelocity = this.compoundMesh.physicsImpostor.getLinearVelocity();
-      currVelocity.x = 0;
-      currVelocity.z = 0;
-      this.compoundMesh.physicsImpostor.setLinearVelocity(currVelocity);
+      const currVelocityMagnitudeOnV = Vector3.Dot(this.v, currVelocity);
+      const currVelocityOnV = this.v.multiplyByFloats(
+        currVelocityMagnitudeOnV,
+        currVelocityMagnitudeOnV,
+        currVelocityMagnitudeOnV
+      );
+      this.compoundMesh.physicsImpostor.setLinearVelocity(currVelocityOnV);
     }
 
   }

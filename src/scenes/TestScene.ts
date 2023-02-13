@@ -122,7 +122,6 @@ export default class TestScene2 extends BaseScene {
   applyGravity2Objects() {
     this.onBeforeRenderObservable.add(() => {
       this.entityObjects.forEach((entityObject: EntityObject, _) => {
-        entityObject.updateWithGravity();
 
         let collidingWithAGObject = false;
         entityObject.collisionTargets.forEach((mesh: Mesh, name: string) => {
@@ -133,7 +132,9 @@ export default class TestScene2 extends BaseScene {
             }
           }
         })
-        if (!collidingWithAGObject) {
+        entityObject.updateWithGravity();
+        if (collidingWithAGObject) {
+        } else {
           entityObject.applyGravity();
         }
       });
